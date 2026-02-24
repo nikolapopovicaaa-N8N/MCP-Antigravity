@@ -1,115 +1,137 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { openai } from '@/lib/openai'
-import { analyzeEmotion } from '@/lib/emotionAnalyzer'
-import { buildSystemPrompt } from '@/lib/promptBuilder'
+import { analyzeEmotionWithHistory, logEmotionToTimeline } from '@/lib/emotionAnalyzerV2'
+import { getTrustLevel, updateTrustScore, detectVulnerability } from '@/lib/trustCalculator'
+import { getRelevantMemories, extractMemories } from '@/lib/memoryManager'
+import { generateThoughtProcess } from '@/lib/intelligenceEngine'
+import { humanizeResponse } from '@/lib/humanizer'
 
 export async function POST(req: Request) {
     try {
-        const { sessionId, message } = await req.json()
+        const { sessionId, message, userId } = await req.json()
 
-        if (!sessionId || !message) {
-            return NextResponse.json({ error: 'Missing sessionId or message' }, { status: 400 })
+        if (!sessionId || !message || !userId) {
+            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
-        // Step 1: Save User Message
-        const { error: insertUserError } = await supabase.from('psych_messages').insert({
-            session_id: sessionId,
-            role: 'user',
-            content: message
-        })
+        // Step 1: Save User Message (get ID back for timeline logging)
+        const { data: userMessageData, error: insertUserError } = await supabase
+            .from('psych_messages')
+            .insert({
+                session_id: sessionId,
+                sender_role: 'user',
+                content: message
+            })
+            .select('id')
+            .single()
 
         if (insertUserError) {
             console.error('Error saving user message:', insertUserError)
             return NextResponse.json({ error: 'Failed to save message' }, { status: 500 })
         }
 
-        // Step 2: Fetch Conversation Memory (last 20 messages)
+        const userMessageId = userMessageData.id
+
+        // Step 2: Fetch Conversation Memory (last 50 messages — up from 20)
         const { data: rows, error: fetchError } = await supabase
             .from('psych_messages')
-            .select('role, content')
+            .select('sender_role, content')
             .eq('session_id', sessionId)
             .order('created_at', { ascending: false })
-            .limit(20)
+            .limit(50)
 
         if (fetchError) {
             console.error('Error fetching history:', fetchError)
             return NextResponse.json({ error: 'Failed to fetch history' }, { status: 500 })
         }
 
-        // Reverse to chronological order for OpenAI
-        const history = (rows || []).reverse()
+        // Reverse to chronological order and map sender_role back to role
+        const history = (rows || []).reverse().map(row => ({ role: row.sender_role, content: row.content }))
 
-        // Convert to OpenAI format
-        const openaiHistory = history.map(m => ({
-            role: m.role as 'user' | 'assistant',
-            content: m.content
-        }))
+        // Step 3: Get session count for this user
+        const { data: sessionData } = await supabase
+            .from('psych_sessions')
+            .select('id')
+            .eq('user_id', userId)
 
-        // Step 3: Emotional State Analysis
-        const emotionResult = analyzeEmotion(history)
+        const sessionCount = sessionData?.length || 1
 
-        // Step 4: Build Dynamic System Prompt
-        const systemPrompt = buildSystemPrompt(emotionResult.dominantEmotion, emotionResult.intensity)
+        // Step 4: Retrieve relevant long-term memories (top 10)
+        const memories = await getRelevantMemories(userId, message, 10)
 
-        // Step 5: OpenAI Call with Structured Output
-        const response = await openai.chat.completions.create({
-            model: 'gpt-4o',
-            messages: [
-                { role: 'system', content: systemPrompt },
-                ...openaiHistory
-            ],
-            response_format: {
-                type: 'json_schema',
-                json_schema: {
-                    name: 'psychologist_response',
-                    schema: {
-                        type: 'object',
-                        properties: {
-                            reply: { type: 'string' },
-                            emotion_detected: {
-                                type: 'string',
-                                enum: ['anxious', 'sad', 'angry', 'calm', 'confused', 'hopeful', 'neutral']
-                            }
-                        },
-                        required: ['reply', 'emotion_detected'],
-                        additionalProperties: false
-                    },
-                    strict: true
-                }
-            }
+        // Step 5: Analyze emotion WITH historical trend
+        const emotionResult = await analyzeEmotionWithHistory(userId, sessionId, history)
+
+        // Step 6: Get trust score
+        const trustScore = await getTrustLevel(userId)
+
+        // Step 7: Intelligence engine — chain-of-thought reasoning + response
+        const thoughtProcess = await generateThoughtProcess(message, {
+            memories,
+            history,
+            emotionResult,
+            trustScore
         })
 
-        const responseContent = response.choices[0]?.message.content
-        if (!responseContent) {
-            throw new Error('No content returned from OpenAI')
-        }
+        // Step 8: Humanize response
+        const humanResponse = humanizeResponse(thoughtProcess.response)
 
-        const parsed = JSON.parse(responseContent)
-
-        // Make sure we have the required fields
-        if (!parsed.reply || !parsed.emotion_detected) {
-            throw new Error('Invalid JSON structure returned from OpenAI')
-        }
-
-        // Step 6: Save Assistant Response
-        const { error: insertAssistantError } = await supabase.from('psych_messages').insert({
-            session_id: sessionId,
-            role: 'assistant',
-            content: parsed.reply,
-            detected_emotion: parsed.emotion_detected
-        })
+        // Step 9: Save Assistant Response with reasoning
+        const { data: assistantMessageData, error: insertAssistantError } = await supabase
+            .from('psych_messages')
+            .insert({
+                session_id: sessionId,
+                sender_role: 'assistant',
+                content: humanResponse,
+                detected_emotion: emotionResult.dominantEmotion,
+                reasoning: thoughtProcess.reasoning,
+                vulnerability_level: thoughtProcess.vulnerabilityLevel,
+                contradiction_detected: thoughtProcess.contradictionDetected
+            })
+            .select('id')
+            .single()
 
         if (insertAssistantError) {
             console.error('Error saving assistant message:', insertAssistantError)
             // Log it but still return reply so UX doesn't break
         }
 
-        // Step 7: Return to Frontend
+        const assistantMessageId = assistantMessageData?.id
+
+        // Step 10: Extract new memories from this exchange (async background — don't await)
+        extractMemories(userId, sessionId, [
+            ...history.slice(-4), // Include recent context
+            { role: 'user', content: message },
+            { role: 'assistant', content: humanResponse }
+        ]).catch(err => console.error('Memory extraction background error:', err))
+
+        // Step 11: Update trust score if vulnerability detected
+        if (detectVulnerability(message)) {
+            updateTrustScore(userId, 'vulnerability_shown').catch(err =>
+                console.error('Trust score update error:', err)
+            )
+        }
+
+        // Step 12: Log emotion to timeline
+        if (userMessageId) {
+            logEmotionToTimeline(
+                userId,
+                sessionId,
+                userMessageId,
+                emotionResult.dominantEmotion,
+                emotionResult.intensity
+            ).catch(err => console.error('Emotion timeline logging error:', err))
+        }
+
+        // Step 13: Return to Frontend
         return NextResponse.json({
-            reply: parsed.reply,
-            emotion_detected: parsed.emotion_detected,
-            intensity: emotionResult.intensity
+            reply: humanResponse,
+            emotion_detected: emotionResult.dominantEmotion,
+            intensity: emotionResult.intensity,
+            trend: emotionResult.trend,
+            trustScore: await getTrustLevel(userId),
+            memoriesRecalled: memories.length,
+            reasoning: thoughtProcess.reasoning // For dev mode debugging
         })
     } catch (error) {
         console.error('API Chat Error:', error)

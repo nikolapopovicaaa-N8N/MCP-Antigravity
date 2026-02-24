@@ -3,7 +3,9 @@ const EMOTION_KEYWORDS: Record<string, string[]> = {
     sad: ['sad', 'depressed', 'hopeless', 'crying', 'alone', 'empty', 'miserable', 'grief'],
     angry: ['angry', 'frustrated', 'furious', 'hate', 'rage', 'irritated', 'annoyed'],
     calm: ['calm', 'okay', 'fine', 'better', 'peaceful', 'good', 'relaxed'],
-    confused: ['confused', 'lost', 'unsure', 'dont know', 'unclear', 'uncertain']
+    confused: ['confused', 'lost', 'unsure', 'dont know', 'unclear', 'uncertain'],
+    hopeful: ['hopeful', 'hope', 'excited', 'optimistic', 'grateful', 'thankful', 'motivated', 'encouraged'],
+    neutral: ['neutral', 'alright', 'average', 'meh', 'nothing special', 'not much']
 }
 
 export function analyzeEmotion(messages: { role: string, content: string }[]): { dominantEmotion: string, intensity: number } {

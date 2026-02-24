@@ -1,4 +1,11 @@
-export default function EmotionIndicator({ emotion }: { emotion: string }) {
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+
+interface EmotionIndicatorProps {
+    emotion: string
+    trend?: 'improving' | 'worsening' | 'stable' | 'unknown'
+}
+
+export default function EmotionIndicator({ emotion, trend }: EmotionIndicatorProps) {
     if (!emotion || emotion === 'neutral') return null;
 
     const colors: Record<string, string> = {
@@ -12,10 +19,18 @@ export default function EmotionIndicator({ emotion }: { emotion: string }) {
 
     const colorClass = colors[emotion] || 'bg-slate-100 text-slate-700 border-slate-200';
 
+    const getTrendIcon = () => {
+        if (trend === 'improving') return <TrendingUp className="w-3 h-3" />
+        if (trend === 'worsening') return <TrendingDown className="w-3 h-3" />
+        if (trend === 'stable') return <Minus className="w-3 h-3" />
+        return null
+    }
+
     return (
         <div className={`text-xs px-2.5 py-1 rounded-full border shadow-sm transition-all duration-500 ease-in-out flex items-center gap-1.5 ${colorClass}`}>
             <div className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
             <span className="capitalize font-medium tracking-wide">{emotion}</span>
+            {getTrendIcon()}
         </div>
     )
 }
