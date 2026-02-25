@@ -76,33 +76,41 @@ export async function POST(req: Request) {
         // Step 8: Humanize response
         const humanResponse = humanizeResponse(thoughtProcess.response)
 
-        // Step 9: Save Assistant Response with reasoning
-        const { data: assistantMessageData, error: insertAssistantError } = await supabase
-            .from('psych_messages')
-            .insert({
-                session_id: sessionId,
-                sender_role: 'assistant',
-                content: humanResponse,
-                detected_emotion: emotionResult.dominantEmotion,
-                reasoning: thoughtProcess.reasoning,
-                vulnerability_level: thoughtProcess.vulnerabilityLevel,
-                contradiction_detected: thoughtProcess.contradictionDetected
-            })
-            .select('id')
-            .single()
+        // Step 8.5: Split response by delimiter for multi-message feature
+        const replies = humanResponse.split('|||').map(s => s.trim()).filter(Boolean)
 
-        if (insertAssistantError) {
-            console.error('Error saving assistant message:', insertAssistantError)
-            // Log it but still return reply so UX doesn't break
+        // Step 9: Save Assistant Responses (one row per split message)
+        const assistantMessageIds: string[] = []
+        for (const reply of replies) {
+            const { data: assistantMessageData, error: insertAssistantError } = await supabase
+                .from('psych_messages')
+                .insert({
+                    session_id: sessionId,
+                    sender_role: 'assistant',
+                    content: reply,
+                    detected_emotion: emotionResult.dominantEmotion,
+                    reasoning: thoughtProcess.reasoning,
+                    vulnerability_level: thoughtProcess.vulnerabilityLevel,
+                    contradiction_detected: thoughtProcess.contradictionDetected
+                })
+                .select('id')
+                .single()
+
+            if (insertAssistantError) {
+                console.error('Error saving assistant message:', insertAssistantError)
+                // Log it but continue saving other messages
+            } else if (assistantMessageData?.id) {
+                assistantMessageIds.push(assistantMessageData.id)
+            }
         }
 
-        const assistantMessageId = assistantMessageData?.id
+        const assistantMessageId = assistantMessageIds[0] // Use first message ID for emotion logging
 
         // Step 10: Extract new memories from this exchange (async background — don't await)
         extractMemories(userId, sessionId, [
             ...history.slice(-4), // Include recent context
             { role: 'user', content: message },
-            { role: 'assistant', content: humanResponse }
+            { role: 'assistant', content: replies.join(' ') } // Combine for memory extraction
         ]).catch(err => console.error('Memory extraction background error:', err))
 
         // Step 11: Update trust score if vulnerability detected
@@ -123,9 +131,10 @@ export async function POST(req: Request) {
             ).catch(err => console.error('Emotion timeline logging error:', err))
         }
 
-        // Step 13: Return to Frontend
+        // Step 13: Return to Frontend (with replies array for multi-message feature)
         return NextResponse.json({
-            reply: humanResponse,
+            replies: replies, // Array of split messages
+            reply: humanResponse, // Keep for backward compatibility (deprecated)
             emotion_detected: emotionResult.dominantEmotion,
             intensity: emotionResult.intensity,
             trend: emotionResult.trend,

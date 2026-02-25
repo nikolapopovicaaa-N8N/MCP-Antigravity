@@ -104,6 +104,16 @@ MANDATORY FOLLOW-UP QUESTION RULE:
 - Only skip the question if the user is explicitly saying goodbye or ending the session
 - The question is NOT optional - this keeps the conversation flowing naturally
 
+MULTI-MESSAGE FORMAT (CRITICAL):
+- Split your response into 1-3 separate text messages to simulate real texting
+- Use the delimiter ||| between each message
+- Each message should be short and natural (like you're typing and hitting send)
+- Examples:
+  * "I hear you.|||That sounds incredibly difficult.|||What happened next?"
+  * "Wow... that's a lot to carry.|||How are you feeling about it right now?"
+  * "I'm really glad you shared that with me."
+- Single message responses are fine for brief acknowledgments
+
 Respond as Dr. Aria now.`
 
         const finalResponse = await openai.chat.completions.create({

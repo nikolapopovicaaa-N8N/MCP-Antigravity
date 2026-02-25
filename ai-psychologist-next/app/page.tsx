@@ -94,6 +94,23 @@ export default function Home() {
         if (sessionError) throw sessionError
         setSessionId(session.id)
 
+        // Feature 1: Load chat history for returning users
+        // Check if user has prior sessions by checking cookieId existence
+        if (cookieId && getCookie('aria_user_id')) {
+          try {
+            const historyRes = await fetch(`/api/history?userId=${user.id}`)
+            if (historyRes.ok) {
+              const historyData = await historyRes.json()
+              if (historyData.messages && historyData.messages.length > 0) {
+                setMessages(historyData.messages)
+              }
+            }
+          } catch (historyErr) {
+            console.error('Failed to load chat history:', historyErr)
+            // Don't throw - allow session to continue even if history load fails
+          }
+        }
+
       } catch (err) {
         console.error('Failed to initialize session. Full Error:', JSON.stringify(err, null, 2))
         setError('Dr. Aria is unavailable right now. Please try again later.')
@@ -143,15 +160,35 @@ export default function Home() {
 
       const data = await res.json()
 
-      const assistantMessage: Message = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: data.reply
+      // Feature 2: Handle multi-message responses with sequential rendering
+      const replies = data.replies || [data.reply] // Fall back to single reply if no array
+
+      // Render each message sequentially with delays
+      for (let i = 0; i < replies.length; i++) {
+        const reply = replies[i]
+
+        // Calculate dynamic delay based on character count (30ms per char, capped at 3000ms)
+        const typingDelay = Math.min(reply.length * 30, 3000)
+
+        // Wait for "typing" delay before showing the message
+        await new Promise(resolve => setTimeout(resolve, typingDelay))
+
+        // Add the message to state
+        const assistantMessage: Message = {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: reply
+        }
+
+        setMessages(prev => [...prev, assistantMessage])
+
+        // Brief pause between messages (except after the last one)
+        if (i < replies.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 400))
+        }
       }
 
-      setMessages(prev => [...prev, assistantMessage])
-
-      // Update v2.0 state
+      // Update v2.0 state (only once after all messages)
       if (data.emotion_detected) {
         setEmotion(data.emotion_detected)
       }
