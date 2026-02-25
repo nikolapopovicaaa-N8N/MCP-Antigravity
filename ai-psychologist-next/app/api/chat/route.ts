@@ -65,20 +65,27 @@ export async function POST(req: Request) {
         // Step 6: Get trust score
         const trustScore = await getTrustLevel(userId)
 
-        // Step 6.5: RAG Context Injection - Fetch previous analyses [probe_analysis] for the current emotion
+        // Step 6.5: RAG Context Injection - Fetch previous deep analyses for the current emotion
+        // This retrieves past assistant responses where the same emotion was detected
+        // to allow Dr. Aria to recognize recurring patterns
         let probeAnalysis: string[] = []
         if (emotionResult.dominantEmotion && emotionResult.dominantEmotion !== 'neutral') {
             const { data: probeData } = await supabase
                 .from('psych_messages')
-                .select('content, reasoning')
+                .select('content, reasoning, created_at')
                 .eq('detected_emotion', emotionResult.dominantEmotion)
                 .eq('sender_role', 'assistant')
                 .not('reasoning', 'is', null)
+                // Filter for messages with substantial reasoning (deep insights)
                 .order('created_at', { ascending: false })
-                .limit(2)
+                .limit(3) // Increased to 3 for better pattern matching
 
             if (probeData && probeData.length > 0) {
-                probeAnalysis = probeData.map(p => `[probe_analysis]\nRazmišljanje: ${p.reasoning}\nOdgovor: ${p.content}`)
+                // Format with context about when this pattern was observed
+                probeAnalysis = probeData.map(p => {
+                    const date = new Date(p.created_at).toLocaleDateString('sr-Latn-BA')
+                    return `[Obrazac od ${date}]\nRazmišljanje: ${p.reasoning}\nOdgovor: ${p.content}`
+                })
             }
         }
 
