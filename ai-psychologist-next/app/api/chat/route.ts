@@ -65,12 +65,30 @@ export async function POST(req: Request) {
         // Step 6: Get trust score
         const trustScore = await getTrustLevel(userId)
 
+        // Step 6.5: RAG Context Injection - Fetch previous analyses [probe_analysis] for the current emotion
+        let probeAnalysis: string[] = []
+        if (emotionResult.dominantEmotion && emotionResult.dominantEmotion !== 'neutral') {
+            const { data: probeData } = await supabase
+                .from('psych_messages')
+                .select('content, reasoning')
+                .eq('detected_emotion', emotionResult.dominantEmotion)
+                .eq('sender_role', 'assistant')
+                .not('reasoning', 'is', null)
+                .order('created_at', { ascending: false })
+                .limit(2)
+
+            if (probeData && probeData.length > 0) {
+                probeAnalysis = probeData.map(p => `[probe_analysis]\nRazmišljanje: ${p.reasoning}\nOdgovor: ${p.content}`)
+            }
+        }
+
         // Step 7: Intelligence engine — chain-of-thought reasoning + response
         const thoughtProcess = await generateThoughtProcess(message, {
             memories,
             history,
             emotionResult,
-            trustScore
+            trustScore,
+            probeAnalysis
         })
 
         // Step 8: Humanize response
