@@ -163,12 +163,19 @@ export default function Home() {
       // Feature 2: Handle multi-message responses with sequential rendering
       const replies = data.replies || [data.reply] // Fall back to single reply if no array
 
-      // Render each message sequentially with delays
+      // Render each message sequentially with realistic human typing delays
       for (let i = 0; i < replies.length; i++) {
         const reply = replies[i]
 
-        // Calculate dynamic delay based on character count (30ms per char, capped at 3000ms)
-        const typingDelay = Math.min(reply.length * 30, 3000)
+        // Humanistic typing simulation formula:
+        // baseReactionTime + (messageLength * typingSpeedPerChar) + randomJitter
+        const baseReactionTime = 1200 // Base time to "think" before typing (1.2s)
+        const typingSpeedPerChar = 40 // Milliseconds per character (~40 WPM realistic typing)
+        const randomJitter = Math.random() * 600 - 300 // +/- 300ms for imperfection
+
+        // Calculate total typing delay (minimum 800ms, maximum 8000ms for very long messages)
+        const calculatedDelay = baseReactionTime + (reply.length * typingSpeedPerChar) + randomJitter
+        const typingDelay = Math.max(800, Math.min(calculatedDelay, 8000))
 
         // Wait for "typing" delay before showing the message
         await new Promise(resolve => setTimeout(resolve, typingDelay))
@@ -182,9 +189,10 @@ export default function Home() {
 
         setMessages(prev => [...prev, assistantMessage])
 
-        // Brief pause between messages (except after the last one)
+        // Brief pause between consecutive messages (except after the last one)
+        // Simulates hitting "send" and then starting to type the next message
         if (i < replies.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 400))
+          await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 400)) // 500-900ms
         }
       }
 
