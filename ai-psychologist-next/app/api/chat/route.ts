@@ -4,7 +4,6 @@ import { analyzeEmotionWithHistory, logEmotionToTimeline } from '@/lib/emotionAn
 import { getTrustLevel, updateTrustScore, detectVulnerability } from '@/lib/trustCalculator'
 import { getRelevantMemories, extractMemories } from '@/lib/memoryManager'
 import { generateThoughtProcess } from '@/lib/intelligenceEngine'
-import { humanizeResponse } from '@/lib/humanizer'
 
 export async function POST(req: Request) {
     try {
@@ -98,16 +97,17 @@ export async function POST(req: Request) {
             probeAnalysis
         })
 
-        // Step 8: Humanize response
-        const humanResponse = humanizeResponse(thoughtProcess.response)
+        // Step 8: (Deprecated) Humanize response is removed to prevent English filler word injection
+        // The prompt now handles humanization natively.
+        const finalResponseText = thoughtProcess.response
 
         // Step 8.5: Split response by delimiter for multi-message feature
         // Backwards compatible: If no ||| delimiter exists, this returns a single-element array
-        const replies = humanResponse.split('|||').map(s => s.trim()).filter(Boolean)
+        const replies = finalResponseText.split('|||').map(s => s.trim()).filter(Boolean)
 
         // Safety check: If splitting somehow resulted in an empty array, use the full response
         if (replies.length === 0) {
-            replies.push(humanResponse)
+            replies.push(finalResponseText)
         }
 
         // Step 9: Save Assistant Responses (one row per split message)
@@ -165,7 +165,7 @@ export async function POST(req: Request) {
         // Step 13: Return to Frontend (with replies array for multi-message feature)
         return NextResponse.json({
             replies: replies, // Array of split messages
-            reply: humanResponse, // Keep for backward compatibility (deprecated)
+            reply: finalResponseText, // Keep for backward compatibility (deprecated)
             emotion_detected: emotionResult.dominantEmotion,
             intensity: emotionResult.intensity,
             trend: emotionResult.trend,
