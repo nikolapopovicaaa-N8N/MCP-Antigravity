@@ -77,7 +77,13 @@ export async function POST(req: Request) {
         const humanResponse = humanizeResponse(thoughtProcess.response)
 
         // Step 8.5: Split response by delimiter for multi-message feature
+        // Backwards compatible: If no ||| delimiter exists, this returns a single-element array
         const replies = humanResponse.split('|||').map(s => s.trim()).filter(Boolean)
+
+        // Safety check: If splitting somehow resulted in an empty array, use the full response
+        if (replies.length === 0) {
+            replies.push(humanResponse)
+        }
 
         // Step 9: Save Assistant Responses (one row per split message)
         const assistantMessageIds: string[] = []

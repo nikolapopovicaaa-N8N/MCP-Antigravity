@@ -8,6 +8,21 @@ interface EmotionIndicatorProps {
 export default function EmotionIndicator({ emotion, trend }: EmotionIndicatorProps) {
     if (!emotion || emotion === 'neutral') return null;
 
+    // Bosnian (Jekavica) emotion translations
+    const emotionTranslations: Record<string, string> = {
+        anxious: 'anksiozno',
+        sad: 'tužno',
+        angry: 'ljuto',
+        calm: 'smireno',
+        confused: 'zbunjeno',
+        hopeful: 'puno nade',
+        happy: 'sretno',
+        frustrated: 'frustrirano',
+        overwhelmed: 'preopterećeno',
+        worried: 'zabrinuto',
+        neutral: 'neutralno'
+    }
+
     const colors: Record<string, string> = {
         anxious: 'bg-orange-100/80 text-orange-700 border-orange-200',
         sad: 'bg-indigo-100/80 text-indigo-700 border-indigo-200',
@@ -18,6 +33,7 @@ export default function EmotionIndicator({ emotion, trend }: EmotionIndicatorPro
     }
 
     const colorClass = colors[emotion] || 'bg-slate-100 text-slate-700 border-slate-200';
+    const translatedEmotion = emotionTranslations[emotion] || emotion;
 
     const getTrendIcon = () => {
         if (trend === 'improving') return <TrendingUp className="w-3 h-3" />
@@ -29,7 +45,7 @@ export default function EmotionIndicator({ emotion, trend }: EmotionIndicatorPro
     return (
         <div className={`text-xs px-2.5 py-1 rounded-full border shadow-sm transition-all duration-500 ease-in-out flex items-center gap-1.5 ${colorClass}`}>
             <div className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
-            <span className="capitalize font-medium tracking-wide">{emotion}</span>
+            <span className="capitalize font-medium tracking-wide">{translatedEmotion}</span>
             {getTrendIcon()}
         </div>
     )

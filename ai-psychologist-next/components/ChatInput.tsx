@@ -45,7 +45,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={disabled}
-                placeholder="Type your message..."
+                placeholder="Unesite vašu poruku..."
                 className="w-full max-h-[120px] bg-transparent resize-none outline-none py-3 px-4 text-slate-800 placeholder:text-slate-400 text-[15px] sm:text-base disabled:opacity-50"
                 rows={1}
             />

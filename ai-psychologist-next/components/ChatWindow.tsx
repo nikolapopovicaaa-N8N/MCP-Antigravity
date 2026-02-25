@@ -30,7 +30,7 @@ export default function ChatWindow({ messages, isLoading }: ChatWindowProps) {
                     <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-blue-400 border border-blue-100">
                         <Bot className="w-8 h-8" />
                     </div>
-                    <p className="text-[15px] sm:text-base font-medium">Hello. I am Dr. Aria. What's on your mind today?</p>
+                    <p className="text-[15px] sm:text-base font-medium">Zdravo. Ja sam Dr. Aria. Šta ti je na umu danas?</p>
                 </div>
             )}
 

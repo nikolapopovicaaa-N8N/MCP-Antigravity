@@ -113,7 +113,7 @@ export default function Home() {
 
       } catch (err) {
         console.error('Failed to initialize session. Full Error:', JSON.stringify(err, null, 2))
-        setError('Dr. Aria is unavailable right now. Please try again later.')
+        setError('Dr. Aria trenutno nije dostupna. Pokušajte ponovo kasnije.')
       }
     }
 
@@ -123,7 +123,7 @@ export default function Home() {
   const handleSend = async (content: string) => {
     if (!sessionId || !userId) {
       console.error('Session or User ID is missing', { sessionId, userId });
-      setError('Session connection error. Please refresh the page.');
+      setError('Greška u konekciji sesije. Molimo osvježite stranicu.');
       return;
     }
 
@@ -211,7 +211,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Chat error:', err)
-      setError('Dr. Aria is unavailable right now. Please try again.')
+      setError('Dr. Aria trenutno nije dostupna. Pokušajte ponovo kasnije.')
     } finally {
       setIsLoading(false)
     }
@@ -228,7 +228,7 @@ export default function Home() {
           <div>
             <h1 className="font-semibold text-lg text-slate-900 leading-tight">Dr. Aria</h1>
             <p className="text-sm text-slate-500 font-medium">
-              AI Clinical Psychologist {welcomeBack && <span className="text-blue-600">• Welcome back</span>}
+              AI Klinički Psiholog {welcomeBack && <span className="text-blue-600">• Dobrodošli nazad</span>}
             </p>
           </div>
         </div>
@@ -257,7 +257,7 @@ export default function Home() {
           <ChatInput onSend={handleSend} disabled={isLoading || !sessionId} />
           <div className="text-center mt-3">
             <p className="text-xs text-slate-400 font-medium">
-              This is an AI assistant for demonstration purposes. In a real crisis, please contact emergency services.
+              Ovo je AI asistent u demonstracione svrhe. U pravoj krizi, molimo kontaktirajte hitne službe.
             </p>
           </div>
         </div>
