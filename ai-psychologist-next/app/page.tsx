@@ -48,9 +48,10 @@ export default function Home() {
           cookieId = crypto.randomUUID()
           setCookie('aria_user_id', cookieId, 365) // 1 year
 
+          const newUserId = crypto.randomUUID()
           const { data, error: userError } = await supabase
             .from('psych_users')
-            .insert({ cookie_id: cookieId })
+            .insert({ id: newUserId, cookie_id: cookieId })
             .select()
             .single()
 
@@ -65,10 +66,10 @@ export default function Home() {
             .single()
 
           if (userError || !data) {
-            // Cookie exists but user not found — create new user
+            // Cookie exists but user not found — create new user with a valid UUID
             const { data: newUser, error: createError } = await supabase
               .from('psych_users')
-              .insert({ cookie_id: cookieId })
+              .insert({ id: crypto.randomUUID(), cookie_id: cookieId })
               .select()
               .single()
 
@@ -82,10 +83,11 @@ export default function Home() {
 
         setUserId(user.id)
 
-        // Create new session for this visit
+        // Create new session for this visit with explicitly generated UUIDs
+        const newSessionId = crypto.randomUUID()
         const { data: session, error: sessionError } = await supabase
           .from('psych_sessions')
-          .insert({ user_id: user.id })
+          .insert({ id: newSessionId, user_id: user.id })
           .select()
           .single()
 
@@ -93,7 +95,7 @@ export default function Home() {
         setSessionId(session.id)
 
       } catch (err) {
-        console.error('Failed to initialize session:', err)
+        console.error('Failed to initialize session. Full Error:', JSON.stringify(err, null, 2))
         setError('Dr. Aria is unavailable right now. Please try again later.')
       }
     }
