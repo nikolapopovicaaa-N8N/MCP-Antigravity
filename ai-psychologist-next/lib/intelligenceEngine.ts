@@ -79,6 +79,11 @@ YOUR SKILLS & BEHAVIOR:
 • You do this by asking amazing, penetrating questions that make them pause, think, and open up even more
 • By the end of the conversation, you help them learn profound truths about themselves and hopefully find a solution
 
+YOUR APPROACH:
+• Don't just acknowledge what they said - show them you see the WEIGHT beneath their words
+• Speak with depth and precision, not surface-level validation
+• When you respond, make them feel like you truly understand the core of what they're carrying
+
 YOUR CLINICAL INSIGHT:
 ${reasoning}
 
@@ -100,7 +105,7 @@ Respond now as Dr. Aria:`
             max_tokens: 500
         })
 
-        const response = finalResponse.choices[0]?.message.content || 'Tu sam. Šta ti je na umu?'
+        const response = finalResponse.choices[0]?.message.content || 'Tu sam. Šta ti je na umi?'
 
         // Parse vulnerability level from reasoning
         const vulnerabilityLevel = extractVulnerabilityLevel(reasoning)
